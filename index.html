@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Catch Me If You Can</title>
+  <title>Side-by-Side Buttons (One Dodges)</title>
   <style>
-    /* Basic reset */
+    /* Reset */
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; }
 
-    /* Page background + centering */
+    /* Full page center */
     body {
       display: grid;
       place-items: center;
@@ -18,32 +18,39 @@
       color: #e9eef6;
     }
 
-    /* Card-like container to keep the runaway button within bounds */
+    /* Container that keeps the runaway button inside */
     .wrap {
-      width: min(92vw, 720px);
-      height: min(72vh, 520px);
+      position: relative;
+      width: min(92vw, 760px);
+      height: min(70vh, 520px);
       display: grid;
       place-items: center;
-      position: relative;          /* positioning context for the dodge button */
       padding: 24px;
       border-radius: 16px;
       background: rgba(255,255,255,0.06);
       outline: 1px solid rgba(255,255,255,0.12);
       box-shadow: 0 20px 60px rgba(0,0,0,0.45) inset, 0 8px 30px rgba(0,0,0,0.4);
-      overflow: hidden;            /* ensures the dodge button can’t escape */
+      overflow: hidden; /* important so the dodge button never escapes */
     }
 
-    /* Stack the two buttons initially */
-    .stack {
-      display: grid;
-      gap: 16px;
-      place-items: center;
-      z-index: 1;                  /* sits above the subtle backdrop */
+    /* Row that visually holds two buttons side-by-side at the start */
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      z-index: 1;  /* above subtle background */
+    }
+
+    /* A "ghost" placeholder to mark where the dodge button starts (right side) */
+    .dodge-slot {
+      width: max(140px, 12ch);
+      height: 44px;
+      pointer-events: none; /* just a spacer */
     }
 
     /* Base button style */
     .btn {
-      font-size: clamp(1rem, 2.4vw, 1.15rem);
+      font-size: clamp(1rem, 2.4vw, 1.1rem);
       padding: 12px 22px;
       border-radius: 999px;
       border: 1px solid transparent;
@@ -53,7 +60,7 @@
       white-space: nowrap;
     }
 
-    /* Clickable button (solid) */
+    /* Clickable (left) */
     .btn-primary {
       background: #22c55e;
       color: #0b1e12;
@@ -63,22 +70,19 @@
     .btn-primary:hover { transform: translateY(-1px) scale(1.02); }
     .btn-primary:active { transform: translateY(0) scale(0.98); }
 
-    /* Dodge button (starts centered but absolutely positioned so we can move it) */
+    /* Dodge (right) – absolutely positioned so we can move it */
     .btn-dodge {
-      position: absolute;          /* so we can reposition it freely */
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);  /* initial center */
+      position: absolute;  /* will be positioned near the right side of the pair */
       background: rgba(255,255,255,0.12);
       color: #fff;
       border-color: rgba(255,255,255,0.28);
       backdrop-filter: blur(2px);
+      /* initial position set by JS for accurate side-by-side placement */
+      transform: translate(-50%, -50%);
+      transition: transform 140ms ease;
     }
-    .btn-dodge:hover {
-      background: rgba(255,255,255,0.18);
-    }
+    .btn-dodge:hover { background: rgba(255,255,255,0.18); }
 
-    /* Footer hint */
     .hint {
       position: absolute;
       bottom: 10px;
@@ -86,66 +90,78 @@
       transform: translateX(-50%);
       font-size: 0.9rem;
       opacity: 0.7;
+      text-align: center;
     }
 
-    @media (max-width: 480px) {
-      .wrap { height: min(64vh, 460px); }
+    @media (max-width: 520px) {
+      .wrap { height: min(64vh, 460px); width: 94vw; }
+      .row { gap: 14px; }
+      .dodge-slot { width: max(128px, 11ch); height: 46px; }
       .btn { padding: 14px 22px; }
     }
   </style>
 </head>
 <body>
   <main class="wrap" aria-label="Main content">
-    <div class="stack">
-      <button id="playBtn" class="btn btn-primary" aria-label="Clickable button">
+    <!-- Visual row with two spots (left = real button, right = placeholder) -->
+    <div class="row">
+      <button id="clickBtn" class="btn btn-primary" type="button" aria-label="Clickable">
         Click Me
       </button>
+
+      <!-- Just a placeholder to help compute the initial side-by-side position -->
+      <div id="dodgeSlot" class="dodge-slot" aria-hidden="true"></div>
     </div>
 
-    <!-- The runaway button lives in the same container but is absolutely positioned -->
+    <!-- The dodge button is absolutely positioned inside .wrap -->
     <button
       id="dodgeBtn"
       class="btn btn-dodge"
       aria-label="You can't click me"
       aria-disabled="true"
-      title="Bet you can't click me!"
       type="button"
+      title="Try to click me 😜"
     >
-      Catch Me 😜
+      Catch Me
     </button>
 
-    <div class="hint">One button is clickable. The other one will avoid your cursor!</div>
+    <div class="hint">Two buttons are centered side by side. The right one always runs away.</div>
   </main>
 
   <script>
-    // Elements
-    const playBtn  = document.getElementById('playBtn');
-    const dodgeBtn = document.getElementById('dodgeBtn');
+    const clickBtn  = document.getElementById('clickBtn');
+    const dodgeBtn  = document.getElementById('dodgeBtn');
+    const dodgeSlot = document.getElementById('dodgeSlot');
     const container = document.querySelector('.wrap');
 
-    // --- Clickable button behavior (demo) ---
-    // You can replace this alert with playing an audio file if you want.
-    playBtn.addEventListener('click', () => {
-      alert('Clicked! (Replace this with your own action, e.g., play audio)');
+    // Left button action (replace with your own)
+    clickBtn.addEventListener('click', () => {
+      alert('Left button clicked!');
     });
 
     // --- Dodge logic ---
-    // The button moves to a random position within the container whenever:
-    // 1) cursor hovers it,
-    // 2) cursor gets near it (proximity trigger),
-    // 3) user tries to click/tap it.
-
     let moving = false;
-    const EDGE_PADDING = 8;     // minimum distance from container edges
-    const FEAR_RADIUS = 70;     // px distance at which it starts to flee
+    const EDGE_PADDING = 8;     // px from container edges
+    const FEAR_RADIUS = 70;     // start fleeing when cursor gets within this distance
 
-    function getRandomPosition(btn, parent) {
-      const pRect = parent.getBoundingClientRect();
-      const bRect = btn.getBoundingClientRect();
+    // Position the dodge button initially exactly over the right-hand placeholder (dodgeSlot)
+    function placeDodgeAtSlot() {
+      const slotRect = dodgeSlot.getBoundingClientRect();
+      const contRect = container.getBoundingClientRect();
 
-      // Compute valid area so the button stays fully visible
-      const maxLeft = pRect.width  - bRect.width  - EDGE_PADDING;
-      const maxTop  = pRect.height - bRect.height - EDGE_PADDING;
+      // Translate the center of dodgeBtn to the center of the slot
+      const targetLeft = slotRect.left - contRect.left + slotRect.width / 2;
+      const targetTop  = slotRect.top  - contRect.top  + slotRect.height / 2;
+
+      dodgeBtn.style.transform = `translate(${targetLeft}px, ${targetTop}px)`;
+    }
+
+    function randomPositionWithinContainer(btn, parent) {
+      const p = parent.getBoundingClientRect();
+      const b = btn.getBoundingClientRect();
+
+      const maxLeft = p.width  - b.width  - EDGE_PADDING;
+      const maxTop  = p.height - b.height - EDGE_PADDING;
 
       const left = EDGE_PADDING + Math.random() * Math.max(0, maxLeft);
       const top  = EDGE_PADDING + Math.random() * Math.max(0, maxTop);
@@ -157,55 +173,47 @@
       if (moving) return;
       moving = true;
 
-      // Temporarily disable pointer events so movement doesn't retrigger instantly
+      // Temporarily disable pointer events during the move to avoid re-trigger
       dodgeBtn.style.pointerEvents = 'none';
 
-      const { left, top } = getRandomPosition(dodgeBtn, container);
-
-      // Animate using transform for smoothness; set transition once
-      dodgeBtn.style.transition = 'transform 140ms ease';
+      const { left, top } = randomPositionWithinContainer(dodgeBtn, container);
       dodgeBtn.style.transform = `translate(${left}px, ${top}px)`;
 
-      // Re-enable pointer events after the move completes
       setTimeout(() => {
         dodgeBtn.style.pointerEvents = 'auto';
         moving = false;
       }, 160);
     }
 
-    // 1) If hovered, move away
+    // Flee when hovered
     dodgeBtn.addEventListener('mouseenter', moveDodgeButton);
 
-    // 2) If cursor is near, move away (proximity dodge)
+    // Flee when the pointer gets near
     container.addEventListener('pointermove', (e) => {
       const r = dodgeBtn.getBoundingClientRect();
       const dx = Math.max(r.left - e.clientX, e.clientX - r.right, 0);
       const dy = Math.max(r.top  - e.clientY, e.clientY - r.bottom, 0);
       const distance = Math.hypot(dx, dy);
 
-      if (distance < FEAR_RADIUS) {
-        moveDodgeButton();
-      }
+      if (distance < FEAR_RADIUS) moveDodgeButton();
     });
 
-    // 3) Belt-and-suspenders: prevent any clicks from ever activating it
+    // Prevent ever clicking it
     dodgeBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       moveDodgeButton();
     });
 
-    // 4) Touch support (since there’s no hover on mobile)
+    // Touch devices: flee on touchstart
     dodgeBtn.addEventListener('touchstart', (e) => {
-      e.preventDefault();   // prevents accidental focus/click
+      e.preventDefault();
       moveDodgeButton();
     }, { passive: false });
 
-    // Keep it sane if the viewport changes size
-    window.addEventListener('resize', () => {
-      // Re-center after resize to ensure it remains visible
-      dodgeBtn.style.transform = 'translate(-50%, -50%)';
-    });
+    // Initial placement and on resize (so it stays side-by-side)
+    window.addEventListener('load', placeDodgeAtSlot);
+    window.addEventListener('resize', placeDodgeAtSlot);
   </script>
 </body>
 </html>
